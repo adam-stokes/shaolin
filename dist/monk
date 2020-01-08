@@ -30,7 +30,7 @@ $fatpacked{"B/Hooks/EndOfScope/XS.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"
 B_HOOKS_ENDOFSCOPE_XS
 
 $fatpacked{"CI/Repo.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'CI_REPO';
-  package CI::Repo;use Moo;use namespace::autoclean;use Data::Dumper;has layer_list=>(is=>'ro');has charm_list=>(is=>'ro');sub init {my ($self,$args)=@_;print Dumper($self)}1;
+  package CI::Repo;use Moo;use namespace::autoclean;use Data::Dumper;has layer_list=>(is=>'ro');has charm_list=>(is=>'ro');sub sync_upstream {my ($self,$args)=@_;print "Syncing upstream\n"}1;
 CI_REPO
 
 $fatpacked{"Capture/Tiny.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'CAPTURE_TINY';
@@ -991,12 +991,14 @@ subcommand repo => 'Repo management' => sub {
 };
 
 sub command_repo {
-    my ( $app, @extra ) = @_;
+    print Dumper(@_);
+    my ( $app, $action ) = @_;
     my $repo = CI::Repo->new(
         layer_list => $app->{layer_list},
         charm_list => $app->{charm_list}
     );
-    $repo->init;
+    $action =~ s/-/_/;
+    $repo->$action if $repo->can($action);
     return 0;
 }
 

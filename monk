@@ -14,12 +14,14 @@ subcommand repo => 'Repo management' => sub {
 };
 
 sub command_repo {
-    my ( $app, @extra ) = @_;
+    print Dumper(@_);
+    my ( $app, $action ) = @_;
     my $repo = CI::Repo->new(
         layer_list => $app->{layer_list},
         charm_list => $app->{charm_list}
     );
-    $repo->init;
+    $action =~ s/-/_/;
+    $repo->$action if $repo->can($action);
     return 0;
 }
 
