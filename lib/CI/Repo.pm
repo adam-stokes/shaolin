@@ -1,15 +1,25 @@
 package CI::Repo;
 
-use Moo;
-use namespace::autoclean;
+use Modern::Perl;
 use Data::Dumper;
+use Moo;
+use Types::Standard qw(ArrayRef InstanceOf);
+use Types::Path::Tiny qw(Path);
+use YAML::Tiny;
+use namespace::autoclean;
 
-has layer_list => (is => 'ro');
-has charm_list => (is => 'ro');
+has items => (
+    is       => 'ro',
+    isa      => ArrayRef->of(Path),
+    coerce   => 1,
+    required => 1
+);
 
 sub sync_upstream {
-    my ($self, $args) = @_;
-    print "Syncing upstream\n";
+    my $self = shift;
+    my $yaml = YAML::Tiny->read_string($self->items->[0]->slurp);
+    say Dumper($yaml);
+    say "Syncing upstream\n";
 }
 
 1;

@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
+use Modern::Perl;
 use Applify;
-use Data::Dumper;
 use CI::Repo;
 
 version 0.01;
@@ -9,18 +9,15 @@ documentation __FILE__;
 
 subcommand repo => 'Repo management' => sub {
     option bool => sync_upstream => "Sync upstream repos";
-    option str => layer_list => "Path to reactive layer ", required => 1;
-    option str => charm_list => "Path to charm list",      required => 1;
+    option str => items => "Path to reactive layer ", required => 1, n_of => 1;
 };
 
 sub command_repo {
-    print Dumper(@_);
     my ( $app, $action ) = @_;
     my $repo = CI::Repo->new(
-        layer_list => $app->{layer_list},
-        charm_list => $app->{charm_list}
+        items => $app->{items},
     );
-    $action =~ s/-/_/;
+    $action =~ tr/-/_/;
     $repo->$action if $repo->can($action);
     return 0;
 }
