@@ -1,25 +1,46 @@
 #!/usr/bin/env perl
 
 use Applify;
-use ci;
+use Data::Dumper;
+use CI::Repo;
 
 version 0.01;
-documentation "ci";
+documentation __FILE__;
 
 subcommand repo => 'Repo management' => sub {
+    option bool => sync_upstream => "Sync upstream repos";
     option str => layer_list => "Path to reactive layer ", required => 1;
     option str => charm_list => "Path to charm list",      required => 1;
 };
 
 sub command_repo {
-    my ( $app, $extra ) = @_;
-    print "doing repo stuff";
+    my ( $app, @extra ) = @_;
+    my $repo = CI::Repo->new(
+        layer_list => $app->{layer_list},
+        charm_list => $app->{charm_list}
+    );
+    $repo->init;
     return 0;
 }
 
 app {
     my $self = shift;
-    print "hi";
-
     return 0;
 };
+
+__END__
+
+=head1 NAME
+
+monk - CLI for CI
+
+=head1 SYNOPSIS
+
+    # Sync upstream git repos
+    $ monk repo --sync-upstream --layer-list my-layers.yaml --charm-list my-charms.yaml
+
+=head1 AUTHOR
+
+Adam Stokes - c<adamjs@cpan.org>
+
+=cut
