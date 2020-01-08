@@ -1,0 +1,25 @@
+#!/usr/bin/env perl
+
+use Applify;
+use ci;
+
+version 0.01;
+documentation "ci";
+
+subcommand repo => 'Repo management' => sub {
+    option str => layer_list => "Path to reactive layer ", required => 1;
+    option str => charm_list => "Path to charm list",      required => 1;
+};
+
+sub command_repo {
+    my ( $app, $extra ) = @_;
+    print "doing repo stuff";
+    return 0;
+}
+
+app {
+    my $self = shift;
+    print "hi";
+
+    return 0;
+};
