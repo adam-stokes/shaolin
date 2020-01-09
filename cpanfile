@@ -2,6 +2,7 @@ requires "Command::Runner";
 requires "YAML::Tiny";
 requires "Path::Tiny";
 requires "File::chdir";
+requires "URL::Encode";
 requires "Types::Path::Tiny";
 requires "Applify";
 requires "Moo";
