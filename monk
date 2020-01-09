@@ -39,7 +39,7 @@ monk - CLI for CI
 =head1 SYNOPSIS
 
     # Sync upstream git repos
-    $ monk repo --sync-upstream --layer-list my-layers.yaml --charm-list my-charms.yaml
+    $ monk repo --items my-layers.yaml --items my-charms.yaml forks
 
 =head1 AUTHOR
 
