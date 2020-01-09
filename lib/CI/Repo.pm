@@ -8,6 +8,8 @@ use Types::Path::Tiny qw(Path);
 use YAML::Tiny;
 use namespace::autoclean;
 
+with 'CI';
+
 has items => (
     is       => 'ro',
     isa      => ArrayRef->of(Path),
@@ -15,11 +17,12 @@ has items => (
     required => 1
 );
 
-sub sync_upstream {
+sub forks {
     my $self = shift;
     my $yaml = YAML::Tiny->read_string($self->items->[0]->slurp);
-    say Dumper($yaml);
+    say $self->dump($yaml);
     say "Syncing upstream\n";
+    $self->system(qw(ls -l /home));
 }
 
 1;
