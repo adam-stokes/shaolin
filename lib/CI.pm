@@ -4,6 +4,7 @@ use Modern::Perl;
 use Carp;
 use Data::Dumper();
 use Command::Runner;
+use Text::MicroTemplate::DataSection;
 use Moo::Role;
 use namespace::autoclean;
 
@@ -31,6 +32,12 @@ sub system {
     );
     my $res = $runner->run;
     return $res;
+}
+
+sub render {
+    my ($self, $name, @context) = @_;
+    my $mt = Text::MicroTemplate::DataSection->new(package => caller);
+    return $mt->render($name, @context);
 }
 
 1;

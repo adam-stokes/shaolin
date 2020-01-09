@@ -3,6 +3,7 @@ requires "YAML::Tiny";
 requires "Path::Tiny";
 requires "File::chdir";
 requires "URL::Encode";
+requires "Text::MicroTemplate::DataSection";
 requires "Types::Path::Tiny";
 requires "Applify";
 requires "Moo";

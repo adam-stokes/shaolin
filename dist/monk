@@ -30,11 +30,11 @@ $fatpacked{"B/Hooks/EndOfScope/XS.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"
 B_HOOKS_ENDOFSCOPE_XS
 
 $fatpacked{"CI.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'CI';
-  package CI;use Modern::Perl;use Carp;use Data::Dumper();use Command::Runner;use Moo::Role;use namespace::autoclean;use constant DEBUG=>$ENV{MONK_DEBUG}|| 0;sub dump {return Data::Dumper->new([$_[1]])->Indent(1)->Terse(1)->Sortkeys(1)->Dump}sub abort {my ($self,$format,@args)=@_;my$message=@args ? sprintf$format,@args : $format;Carp::confess("!! $message")if DEBUG;die "!! $message\n"}sub system {my ($self,$cmd)=@_;my$runner=Command::Runner->new(command=>$cmd,stdout=>sub {warn "$_[0]\n"},stderr=>sub {warn "err: $_[0]\n"},);my$res=$runner->run;return$res}1;
+  package CI;use Modern::Perl;use Carp;use Data::Dumper();use Command::Runner;use Text::MicroTemplate::DataSection;use Moo::Role;use namespace::autoclean;use constant DEBUG=>$ENV{MONK_DEBUG}|| 0;sub dump {return Data::Dumper->new([$_[1]])->Indent(1)->Terse(1)->Sortkeys(1)->Dump}sub abort {my ($self,$format,@args)=@_;my$message=@args ? sprintf$format,@args : $format;Carp::confess("!! $message")if DEBUG;die "!! $message\n"}sub system {my ($self,$cmd)=@_;my$runner=Command::Runner->new(command=>$cmd,stdout=>sub {warn "$_[0]\n"},stderr=>sub {warn "err: $_[0]\n"},);my$res=$runner->run;return$res}sub render {my ($self,$name,@context)=@_;my$mt=Text::MicroTemplate::DataSection->new(package=>caller);return$mt->render($name,@context)}1;
 CI
 
 $fatpacked{"CI/Repo.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'CI_REPO';
-  package CI::Repo;use Modern::Perl;use Data::Dumper;use Types::Standard qw(ArrayRef InstanceOf);use Types::Path::Tiny qw(Path);use YAML::Tiny;use Path::Tiny;use File::chdir;use URL::Encode qw(url_encode);use Moo;use namespace::autoclean;with 'CI';has items=>(is=>'ro',isa=>ArrayRef->of(Path),coerce=>1,required=>1);sub forks {my$self=shift;my@repos;for my$file (@{$self->items}){my$yaml=YAML::Tiny->read_string($file->absolute->slurp);for my$spec (@{$yaml->[0]}){push@repos,$spec}}my$tmpdir=Path::Tiny->tempdir;local$CWD=$tmpdir;for my$item (@repos){my ($spec)=keys %{$item};printf ("Processing %s\n",$spec);my%vals=%{$item->{$spec}};my$downstream=sprintf("https://%s:%s\@github.com/%s",url_encode($ENV{'CDKBOT_GH_USR'}),url_encode($ENV{'CDKBOT_GH_PSW'}),$vals{downstream});printf ("down -> %s\n",$downstream);printf ("up   -> %s\n",$vals{upstream});$self->system("git clone $downstream");$self->system("ls -al *")}}1;
+  package CI::Repo;use Modern::Perl;use Data::Dumper;use Types::Standard qw(ArrayRef InstanceOf);use Types::Path::Tiny qw(Path);use YAML::Tiny;use Path::Tiny;use File::chdir;use URL::Encode qw(url_encode);use Moo;use namespace::autoclean;with 'CI';has items=>(is=>'ro',isa=>ArrayRef->of(Path),coerce=>1,required=>1);sub forks {my$self=shift;my@repos;for my$file (@{$self->items}){my$yaml=YAML::Tiny->read_string($file->absolute->slurp);for my$spec (@{$yaml->[0]}){push@repos,$spec}}my$tmpdir=Path::Tiny->tempdir;local$CWD=$tmpdir;for my$item (@repos){my ($spec)=keys %{$item};printf("Processing %s\n",$spec);my%vals=%{$item->{$spec}};my$downstream=sprintf("https://%s:%s\@github.com/%s",url_encode($ENV{'CDKBOT_GH_USR'}),url_encode($ENV{'CDKBOT_GH_PSW'}),$vals{downstream});printf("down -> %s\n",$downstream);printf("up   -> %s\n",$vals{upstream});$self->system("git clone $downstream")}}1;
 CI_REPO
 
 $fatpacked{"Capture/Tiny.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'CAPTURE_TINY';
@@ -102,6 +102,10 @@ COMMAND_RUNNER_LINEBUFFER
 $fatpacked{"Command/Runner/Quote.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'COMMAND_RUNNER_QUOTE';
   package Command::Runner::Quote;use strict;use warnings;use Win32::ShellQuote ();use String::ShellQuote ();use Exporter 'import';our@EXPORT_OK=qw(quote quote_win32 quote_unix);sub quote_win32 {my$str=shift;Win32::ShellQuote::quote_literal($str,1)}sub quote_unix {my$str=shift;String::ShellQuote::shell_quote_best_effort($str)}if ($^O eq 'MSWin32'){*quote=\&quote_win32}else {*quote=\&quote_unix}1;
 COMMAND_RUNNER_QUOTE
+
+$fatpacked{"Data/Section/Simple.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'DATA_SECTION_SIMPLE';
+  package Data::Section::Simple;use strict;use 5.008_001;our$VERSION='0.07';use base qw(Exporter);our@EXPORT_OK=qw(get_data_section);sub new {my($class,$pkg)=@_;bless {package=>$pkg || caller },$class}sub get_data_section {my$self=ref $_[0]? shift : __PACKAGE__->new(scalar caller);if (@_){my$all=$self->get_data_section;return unless$all;return$all->{$_[0]}}else {my$d=do {no strict 'refs';\*{$self->{package}."::DATA"}};return unless defined fileno$d;seek$d,0,0;my$content=join '',<$d>;$content =~ s/^.*\n__DATA__\n/\n/s;$content =~ s/\n__END__\n.*$/\n/s;my@data=split /^@@\s+(.+?)\s*\r?\n/m,$content;shift@data;my$all={};while (@data){my ($name,$content)=splice@data,0,2;$all->{$name}=$content}return$all}}1;
+DATA_SECTION_SIMPLE
 
 $fatpacked{"Devel/TypeTiny/Perl56Compat.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'DEVEL_TYPETINY_PERL56COMPAT';
   package Devel::TypeTiny::Perl56Compat;use 5.006;use strict;use warnings;our$AUTHORITY='cpan:TOBYINK';our$VERSION='1.008001';$VERSION =~ tr/_//d;use B ();unless (exists&B::perlstring){my$d;*B::perlstring=sub {no warnings 'uninitialized';require Data::Dumper;$d ||= 'Data::Dumper'->new([])->Indent(0)->Purity(0)->Pad('')->Useqq(1)->Terse(1)->Freezer('')->Toaster('');my$perlstring=$d->Values([''.shift])->Dump;($perlstring =~ /^"/)? $perlstring : qq["$perlstring"]}}unless (exists&B::cstring){*B::cstring=\&B::perlstring}push@B::EXPORT_OK,qw(perlstring cstring);5.6;
@@ -1004,6 +1008,50 @@ $fatpacked{"Test/TypeTiny.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'T
   FAST
 TEST_TYPETINY
 
+$fatpacked{"Text/MicroTemplate.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'TEXT_MICROTEMPLATE';
+  package Text::MicroTemplate;require Exporter;use strict;use warnings;use constant DEBUG=>$ENV{MICRO_TEMPLATE_DEBUG}|| 0;use 5.00800;use Scalar::Util;our$VERSION='0.24';our@ISA=qw(Exporter);our@EXPORT_OK=qw(encoded_string build_mt render_mt);our%EXPORT_TAGS=(all=>[@EXPORT_OK ],);our$_mt_setter='';sub new {my$class=shift;my$self=bless {code=>undef,comment_mark=>'#',expression_mark=>'=',line_start=>'?',template=>undef,tree=>[],tag_start=>'<?',tag_end=>'?>',escape_func=>\&_inline_escape_html,prepend=>'',package_name=>undef,@_==1 ? ref($_[0])? %{$_[0]}: (template=>$_[0]): @_,},$class;if (defined$self->{template}){$self->parse($self->{template})}unless (defined$self->{package_name}){$self->{package_name}='main';my$i=0;while (my$c=caller(++$i)){if ($c !~ /^Text::MicroTemplate\b/){$self->{package_name}=$c;last}}}$self}sub escape_func {my$self=shift;if (@_){$self->{escape_func}=shift}$self->{escape_func}}sub package_name {my$self=shift;if (@_){$self->{package_name}=shift}$self->{package_name}}sub template {shift->{template}}sub code {my$self=shift;unless (defined$self->{code}){$self->_build()}$self->{code}}sub _build {my$self=shift;my$escape_func=$self->{escape_func}|| '';my$embed_escape_func=ref($escape_func)eq 'CODE' ? $escape_func : sub{$escape_func ."(@_)"};my@lines;my$last_was_code;my$last_text;for my$line (@{$self->{tree}}){push@lines,'';for (my$j=0;$j < @{$line};$j += 2){my$type=$line->[$j];my$value=$line->[$j + 1];if ($type ne 'text' && defined$last_text){$lines[$j==0 && @lines >= 2 ? -2 : -1 ].= "\$_MT .=\"$last_text\";";undef$last_text}my$newline=chomp$value;if ($last_was_code && $type ne 'code'){$lines[-1].= ';';undef$last_was_code}if ($type eq 'text'){$value=quotemeta($value);$value .= '\n' if$newline;$last_text=defined$last_text ? "$last_text$value" : $value}if ($type eq 'code'){$lines[-1].= $value;$last_was_code=1}if ($type eq 'expr'){my$escaped=$embed_escape_func->('$_MT_T');if ($newline && $value =~ /\n/){$value .= "\n"}$lines[-1].= "\$_MT_T = $value;\$_MT .= ref \$_MT_T eq 'Text::MicroTemplate::EncodedString' ? \$\$_MT_T : $escaped; \$_MT_T = '';"}}}if ($last_was_code){$lines[-1].= "\n;"}if (defined$last_text){$lines[-1].= "\$_MT .=\"$last_text\";"}$lines[0]=q/sub { my $_MT = ''; local $/ .$self->{package_name}.q/::_MTREF = \$_MT; my $_MT_T = '';/ .(@lines ? $lines[0]: '');$lines[-1].= q/return $_MT; }/;$self->{code}=join "\n",@lines;return$self}sub parse {my ($self,$tmpl)=@_;$self->{template}=$tmpl;delete$self->{tree};delete$self->{code};my$line_start=quotemeta$self->{line_start};my$tag_start=quotemeta$self->{tag_start};my$tag_end=quotemeta$self->{tag_end};my$cmnt_mark=quotemeta$self->{comment_mark};my$expr_mark=quotemeta$self->{expression_mark};my$state='text';my@lines=split /(\n)/,$tmpl;my$tokens=[];while (@lines){my$line=shift@lines;my$newline=undef;if (@lines){shift@lines;$newline=1}if ($state eq 'text'){if ($line =~ /^$line_start\s+(.*)$/){push @{$self->{tree}},['code',$1];next}if ($line =~ /^$line_start$expr_mark\s+(.+)$/){push @{$self->{tree}},['expr',$1,$newline ? ('text',"\n"): (),];next}if ($line =~ /^$line_start$cmnt_mark/){push @{$self->{tree}},[];next}}if ($line =~ /(\\+)$/){my$length=length $1;if ($length==1){$line =~ s/\\$//}if ($length >= 2){$line =~ s/\\\\$/\\/;$line .= "\n"}}else {$line .= "\n" if$newline}for my$token (split /
+              (
+                  $tag_start$expr_mark     # Expression
+              |
+                  $tag_start$cmnt_mark     # Comment
+              |
+                  $tag_start               # Code
+              |
+                  $tag_end                 # End
+              )
+          /x,$line){if ($token eq ''){next}elsif ($token =~ /^$tag_end$/){$state='text';next}elsif ($token =~ /^$tag_start$/){$state='code';next}elsif ($token =~ /^$tag_start$cmnt_mark$/){$state='cmnt';next}elsif ($token =~ /^$tag_start$expr_mark$/){$state='expr';next}if ($state eq 'text'){push @$tokens,$state,$token}elsif ($state eq 'cmnt'){next}elsif ($state eq 'cont'){$tokens->[-1].= $token}else {push @$tokens,$state,$token;$state='cont'}}if ($state eq 'text'){push @{$self->{tree}},$tokens;$tokens=[]}}push @{$self->{tree}},$tokens if @$tokens;return$self}sub _context {my ($self,$text,$line)=@_;my@lines=split /\n/,$text;join '',map {0 < $_ && $_ <= @lines ? sprintf("%4d: %s\n",$_,$lines[$_ - 1]): ''}($line - 2).. ($line + 2)}sub _error {my ($self,$error,$line_offset,$from)=@_;if ($error =~ /^(.*)\s+at\s+\(eval\s+\d+\)\s+line\s+(\d+)/){my$reason=$1;my$line=$2 - $line_offset;my$delim='-' x 76;my$report="$reason at line $line in template passed from $from.\n";my$template=$self->_context($self->{template},$line);$report .= "$delim\n$template$delim\n";if (DEBUG){my$code=$self->_context($self->code,$line);$report .= "$code$delim\n";$report .= $error}return$report}return "Template error: $error"}sub encoded_string {Text::MicroTemplate::EncodedString->new($_[0])}sub _inline_escape_html{my($variable)=@_;my$source=qq{
+          do{
+              $variable =~ s/([&><"'])/\$Text::MicroTemplate::_escape_table{\$1}/ge;
+              $variable;
+          }
+      };$source =~ s/\n//g;return$source}our%_escape_table=('&'=>'&amp;','>'=>'&gt;','<'=>'&lt;',q{"}=>'&quot;',q{'}=>'&#39;');sub escape_html {my$str=shift;return '' unless defined$str;return$str->as_string if ref$str eq 'Text::MicroTemplate::EncodedString';$str =~ s/([&><"'])/$_escape_table{$1}/ge;return$str}sub build_mt {my$mt=Text::MicroTemplate->new(@_);$mt->build()}sub build {my$_mt=shift;Scalar::Util::weaken($_mt)if$_mt_setter;my$_code=$_mt->code;my$_from=sub {my$i=0;while (my@c=caller(++$i)){return "$c[1] at line $c[2]" if$c[0]ne __PACKAGE__}''}->();my$line_offset=(()=($_mt->{prepend}=~ /\n/sg))+ 5;my$expr=<< "...";if(DEBUG >= 2){DEBUG >= 3 ? die$expr : warn$expr}my$die_msg;{local $@;if (my$_builder=eval($expr)){return$_builder}$die_msg=$_mt->_error($@,$line_offset,$_from)}die$die_msg}sub render_mt {my$builder=build_mt(shift);$builder->(@_)}sub filter {my ($self,$callback)=@_;my$mtref=do {no strict 'refs';${"$self->{package_name}::_MTREF"}};my$before=$$mtref;$$mtref='';return sub {my$inner_func=shift;$inner_func->(@_);local $_=$$mtref;my$retval=$callback->($$mtref);no warnings 'uninitialized';if (($retval =~ /^\d+$/ and $_ ne $$mtref)or (defined$retval and!$retval)){$$mtref=$before .$_}else {$$mtref=$before .$retval}}}package Text::MicroTemplate::EncodedString;use strict;use warnings;use overload q{""}=>sub {shift->as_string},fallback=>1;sub new {my ($klass,$str)=@_;bless \$str,$klass}sub as_string {my$self=shift;$$self}1;
+  package $_mt->{package_name};
+  sub {
+      ${_mt_setter}local \$SIG{__WARN__} = sub { print STDERR \$_mt->_error(shift, $line_offset, \$_from) };
+      $_mt->{prepend}
+      Text::MicroTemplate::encoded_string((
+          $_code
+      )->(\@_));
+  }
+  ...
+TEXT_MICROTEMPLATE
+
+$fatpacked{"Text/MicroTemplate/DataSection.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'TEXT_MICROTEMPLATE_DATASECTION';
+  package Text::MicroTemplate::DataSection;use strict;use warnings;use base 'Text::MicroTemplate::File','Exporter';our$VERSION='0.01';our@EXPORT_OK=qw(render_mt);use Carp;use Encode;use Data::Section::Simple;sub new {my$self=shift->SUPER::new(@_);$self->{package}||= scalar caller;$self->{section}=Data::Section::Simple->new($self->{package});$self}sub build_file {my ($self,$file)=@_;if (my$e=$self->{cache}{$file }){return$e}my$data=$self->{section}->get_data_section($file);if ($data){$self->parse(decode_utf8$data);local$Text::MicroTemplate::_mt_setter='my $_mt = shift;';my$f=$self->build();$self->{cache}{$file}=$f if$self->{use_cache};return$f}croak "could not find template file: $file in __DATA__ section"}sub render_mt {my$self=ref $_[0]? shift : __PACKAGE__->new(package=>scalar caller);$self->render_file(@_)}sub render {goto $_[0]->can('render_file')};1;
+TEXT_MICROTEMPLATE_DATASECTION
+
+$fatpacked{"Text/MicroTemplate/DataSectionEx.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'TEXT_MICROTEMPLATE_DATASECTIONEX';
+  package Text::MicroTemplate::DataSectionEx;use strict;use warnings;use base 'Text::MicroTemplate::Extended','Exporter';our$VERSION='0.01';our@EXPORT_OK=qw(render_mt);use Carp;use Encode;use Data::Section::Simple;sub new {my$self=shift->SUPER::new(@_);$self->{package}||= scalar caller;$self->{section}=Data::Section::Simple->new($self->{package});$self}sub build_file {my ($self,$file)=@_;if (my$e=$self->{cache}{$file }){return$e}my$data=$self->{section}->get_data_section($file);if ($data){$self->parse(decode_utf8$data);local$Text::MicroTemplate::_mt_setter='my $_mt = shift;';my$f=$self->build();$self->{cache}{$file}=$f if$self->{use_cache};return$f}croak "could not find template file: $file in __DATA__ section"}sub render_mt {my$self=ref $_[0]? shift : __PACKAGE__->new(package=>scalar caller);$self->render_file(@_)}1;
+TEXT_MICROTEMPLATE_DATASECTIONEX
+
+$fatpacked{"Text/MicroTemplate/EncodedString.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'TEXT_MICROTEMPLATE_ENCODEDSTRING';
+  use Text::MicroTemplate;1;
+TEXT_MICROTEMPLATE_ENCODEDSTRING
+
+$fatpacked{"Text/MicroTemplate/File.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'TEXT_MICROTEMPLATE_FILE';
+  package Text::MicroTemplate::File;use strict;use warnings;use File::Spec;use Text::MicroTemplate;sub croak {require Carp;goto&Carp::croak}our@ISA=qw(Text::MicroTemplate);sub new {my$klass=shift;my$self=$klass->SUPER::new(@_);$self->{include_path}||= ['.' ];unless (defined$self->{open_layer}){$self->{open_layer}=':utf8'}unless (ref$self->{include_path}){$self->{include_path}=[$self->{include_path}]}$self->{use_cache}||= 0;$self->{cache}={};$self}sub include_path {my$self=shift;croak("This is readonly accessor")if @_;$self->{include_path}}sub open_layer {my$self=shift;$self->{open_layer}=$_[0]if @_;$self->{open_layer}}sub use_cache {my$self=shift;$self->{use_cache}=$_[0]if @_;$self->{use_cache}}sub build_file {my ($self,$file)=@_;if ($self->{use_cache}==2){if (my$e=$self->{cache}->{$file}){return$e->[1]}}my ($filepath,@st);if (File::Spec->file_name_is_absolute($file)){$filepath=$file;@st=stat$filepath}else {for my$path (@{$self->{include_path}}){$filepath=$path .'/' .$file;@st=stat$filepath and last}}croak("could not find template file: $file (include_path: @{$self->{include_path}})")unless@st;if (my$e=$self->{cache}->{$file}){return$e->[1]if$st[9]==$e->[0]}open my$fh,"<$self->{open_layer}",$filepath or croak("failed to open:$filepath:$!");my$src=do {local $/;<$fh>};close$fh;$self->parse($src);local$Text::MicroTemplate::_mt_setter='my $_mt = shift;';my$f=$self->build();$self->{cache}->{$file}=[$st[9],$f,]if$self->{use_cache};return$f}sub render_file {my$self=shift;my$file=shift;$self->build_file($file)->($self,@_)}sub wrapper_file {my$self=shift;my$file=shift;my@args=@_;my$mtref=do {no strict 'refs';${"$self->{package_name}::_MTREF"}};my$before=$$mtref;$$mtref='';return sub {my$inner_func=shift;$inner_func->(@_);$$mtref=$before .$self->render_file($file,Text::MicroTemplate::encoded_string($$mtref),@args)->as_string}}1;
+TEXT_MICROTEMPLATE_FILE
+
 $fatpacked{"Try/Tiny.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'TRY_TINY';
   package Try::Tiny;use 5.006;our$VERSION='0.30';use strict;use warnings;use Exporter 5.57 'import';our@EXPORT=our@EXPORT_OK=qw(try catch finally);use Carp;$Carp::Internal{+__PACKAGE__}++;BEGIN {my$su=$INC{'Sub/Util.pm'}&& defined&Sub::Util::set_subname;my$sn=$INC{'Sub/Name.pm'}&& eval {Sub::Name->VERSION(0.08)};unless ($su || $sn){$su=eval {require Sub::Util}&& defined&Sub::Util::set_subname;unless ($su){$sn=eval {require Sub::Name;Sub::Name->VERSION(0.08)}}}*_subname=$su ? \&Sub::Util::set_subname : $sn ? \&Sub::Name::subname : sub {$_[1]};*_HAS_SUBNAME=($su || $sn)? sub(){1}: sub(){0}}my%_finally_guards;sub try (&;@) {my ($try,@code_refs)=@_;my$wantarray=wantarray;my ($catch,@finally)=();for my$code_ref (@code_refs){if (ref($code_ref)eq 'Try::Tiny::Catch'){croak 'A try() may not be followed by multiple catch() blocks' if$catch;$catch=${$code_ref}}elsif (ref($code_ref)eq 'Try::Tiny::Finally'){push@finally,${$code_ref}}else {croak('try() encountered an unexpected argument (' .(defined$code_ref ? $code_ref : 'undef').') - perhaps a missing semi-colon before or')}}_subname(caller().'::try {...} '=>$try)if _HAS_SUBNAME;local$_finally_guards{guards}=[map {Try::Tiny::ScopeGuard->_new($_)}@finally ];my$prev_error=$@;my (@ret,$error);my$failed=not eval {$@=$prev_error;if ($wantarray){@ret=$try->()}elsif (defined$wantarray){$ret[0]=$try->()}else {$try->()};return 1};$error=$@;$@=$prev_error;if ($failed){push @$_,$error for @{$_finally_guards{guards}};if ($catch){for ($error){return$catch->($error)}}return}else {return$wantarray ? @ret : $ret[0]}}sub catch (&;@) {my ($block,@rest)=@_;croak 'Useless bare catch()' unless wantarray;_subname(caller().'::catch {...} '=>$block)if _HAS_SUBNAME;return (bless(\$block,'Try::Tiny::Catch'),@rest,)}sub finally (&;@) {my ($block,@rest)=@_;croak 'Useless bare finally()' unless wantarray;_subname(caller().'::finally {...} '=>$block)if _HAS_SUBNAME;return (bless(\$block,'Try::Tiny::Finally'),@rest,)}{package Try::Tiny::ScopeGuard;use constant UNSTABLE_DOLLARAT=>("$]" < '5.013002')? 1 : 0;sub _new {shift;bless [@_ ]}sub DESTROY {my ($code,@args)=@{$_[0]};local $@ if UNSTABLE_DOLLARAT;eval {$code->(@args);1}or do {warn "Execution of finally() block $code resulted in an exception, which " .'*CAN NOT BE PROPAGATED* due to fundamental limitations of Perl. ' .'Your program will continue as if this event never took place. ' ."Original exception text follows:\n\n" .(defined $@ ? $@ : '$@ left undefined...')."\n" }}}__PACKAGE__ 
 TRY_TINY
@@ -1364,32 +1412,38 @@ unshift @INC, bless \%fatpacked, $class;
 use Modern::Perl;
 use Applify;
 use CI::Repo;
+use Text::MicroTemplate qw(:all);
 
 version 0.01;
 documentation __FILE__;
 
 subcommand repo => 'Repo management' => sub {
-    option bool => forks => "Sync upstream repo forks";
-    option str => items => "Path to reactive/charm/ancillary items", required => 1, n_of => 1;
+  option bool => forks => "Sync upstream repo forks";
+  option str  => items => "Path to reactive/charm/ancillary items", required => 1, n_of => 1;
 };
 
 sub command_repo {
-    my $app = shift;
-    my $action = shift || 'forks';
-    my $repo = CI::Repo->new(
-        items => $app->{items},
-    );
-    $action =~ s/-/_/g;
+  my $app    = shift;
+  my $action = shift || 'forks';
+  my $repo   = CI::Repo->new(items => $app->{items},);
+  say $repo->render('welcome', 'Adam Stokes');
+  $action =~ s/-/_/g;
 
-    $repo->abort("Unknown action: $action") if !$repo->can($action);
-    $repo->$action;
-    return 0;
+  $repo->abort("Unknown action: $action") if !$repo->can($action);
+  $repo->$action;
+  return 0;
 }
 
 app {
-    my $self = shift;
-    return 0;
+  my $self = shift;
+  return 0;
 };
+
+__DATA__
+
+@@ welcome
+? my $title = shift;
+Hello <?= $title =>
 
 __END__
 

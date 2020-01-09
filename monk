@@ -3,6 +3,7 @@
 use Modern::Perl;
 use Applify;
 use CI::Repo;
+use Text::MicroTemplate qw(:all);
 
 version 0.01;
 documentation __FILE__;
