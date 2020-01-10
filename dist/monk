@@ -30,11 +30,135 @@ $fatpacked{"B/Hooks/EndOfScope/XS.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"
 B_HOOKS_ENDOFSCOPE_XS
 
 $fatpacked{"CI.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'CI';
-  package CI;use Modern::Perl;use Carp;use Data::Dumper();use Command::Runner;use Text::MicroTemplate::DataSection;use Moo::Role;use namespace::autoclean;use constant DEBUG=>$ENV{MONK_DEBUG}|| 0;sub dump {return Data::Dumper->new([$_[1]])->Indent(1)->Terse(1)->Sortkeys(1)->Dump}sub abort {my ($self,$format,@args)=@_;my$message=@args ? sprintf$format,@args : $format;Carp::confess("!! $message")if DEBUG;die "!! $message\n"}sub system {my ($self,$cmd)=@_;my$runner=Command::Runner->new(command=>$cmd,stdout=>sub {warn "$_[0]\n"},stderr=>sub {warn "err: $_[0]\n"},);my$res=$runner->run;return$res}sub render {my ($self,$name,@context)=@_;my$mt=Text::MicroTemplate::DataSection->new(package=>caller);return$mt->render($name,@context)}1;
+  package CI;use Modern::Perl;use Carp;use Data::Dumper();use Command::Runner;use Text::MicroTemplate::DataSection;use Types::Standard qw(Str HashRef);use Type::Params qw(compile);use Moo::Role;use namespace::autoclean;use constant DEBUG=>$ENV{MONK_DEBUG}|| 0;sub dump {return Data::Dumper->new([$_[1]])->Indent(1)->Terse(1)->Sortkeys(1)->Dump}sub abort {my ($self,$format,@args)=@_;my$message=@args ? sprintf$format,@args : $format;Carp::confess("!! $message")if DEBUG;die "!! $message\n"}sub system {my ($self,$cmd)=@_;my$runner=Command::Runner->new(command=>$cmd,stdout=>sub {warn "$_[0]\n"},stderr=>sub {warn "[E]: $_[0]\n"},);my$res=$runner->run;return$res}sub render {state$check=compile(Str,HashRef);my ($self,$name,$context)=$check->(@_);my$mt=Text::MicroTemplate::DataSection->new(package=>caller);return$mt->render($name,%{$context})}1;
 CI
 
+$fatpacked{"CI/Deploy/Spec/Offline.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'CI_DEPLOY_SPEC_OFFLINE';
+  package CI::Deploy::Spec::Offline;use Modern::Perl;use Types::Standard qw(Str);use Moo;use namespace::autoclean;with 'CI';has machine=>(is=>'ro',isa=>Str,required=>1);sub execute {my$self=shift}1;__DATA__ 
+  @@ apt-mirror.list
+  
+  set nthreads     20
+  set _tilde 0
+  
+  deb http://archive.ubuntu.com/ubuntu bionic main restricted universe multiverse
+  deb http://archive.ubuntu.com/ubuntu bionic-security main restricted universe multiverse
+  deb http://archive.ubuntu.com/ubuntu bionic-updates main restricted universe multiverse
+  deb http://archive.ubuntu.com/ubuntu bionic-backports main restricted universe multiverse
+  
+  deb-src http://archive.ubuntu.com/ubuntu bionic main restricted universe multiverse
+  deb-src http://archive.ubuntu.com/ubuntu bionic-security main restricted universe multiverse
+  deb-src http://archive.ubuntu.com/ubuntu bionic-updates main restricted universe multiverse
+  deb-src http://archive.ubuntu.com/ubuntu bionic-backports main restricted universe multiverse
+  clean http://archive.ubuntu.com/ubuntu
+  
+  
+  @@ cloudinit.yaml
+  ? my $stash = shift;
+  
+  cloudinit-userdata: |
+    apt:
+      primary:
+        - arches: [i386, amd64]
+          uri: http://<?= $stash->{hostname} ?>/ubuntu
+      security:
+        - arches: [i386, amd64]
+          uri: http://<?= $stash->{hostname} ?>/ubuntu
+  
+  @@ environment
+  
+  PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin"
+  HTTP_PROXY=http://localhost:3128
+  HTTPS_PROXY=http://localhost:3128
+  http_proxy=http://localhost:3128
+  https_proxy=http://localhost:3128
+  
+  @@ squid.conf
+  ? my $stash = shift;
+  
+  acl lxd dst  <?= $stash->{lxdbr0_subnet} ?> # 10.254.86.0/24 whatever lxdbr0 is
+  http_access allow lxd
+  
+  acl apt dst 172.31.5.0/24
+  http_access allow apt
+  
+  acl rockscc dstdomain rocks.canonical.com
+  http_access allow rockscc
+  
+  http_access allow localhost
+  
+  http_access deny all
+  http_port 3128
+  
+  @@ ssl.conf
+  
+  ? my $stash = shift;
+  [ req ]
+  prompt = no
+  default_bits = 4096
+  distinguished_name = req_distinguished_name
+  req_extensions = req_ext
+  
+  [ req_distinguished_name ]
+  C=GB
+  ST=London
+  L=London
+  O=Canonical
+  OU=Canonical
+  CN=<?= $stash->{hostname} ?>
+  
+  [ req_ext ]
+  subjectAltName = @alt_names
+  
+  [alt_names]
+  DNS.1 = <?= $stash->{hostname} ?>
+  DNS.2 = <?= $stash->{hostname} ?>
+  IP.1 = <?= $stash->{hostname} ?>
+  
+  @@ sstreams-mirror.conf
+  
+  <VirtualHost *:443>
+      ServerName sstreams.cdk-juju
+      ServerAlias *
+      DocumentRoot /var/spool/sstreams/
+      SSLCACertificatePath /etc/ssl/certs
+      SSLCertificateFile /etc/pki/tls/certs/mirror.crt
+      SSLEngine On
+      SSLCertificateKeyFile /etc/pki/tls/private/mirror.key
+      LogLevel info
+      ErrorLog /var/log/apache2/mirror-lxdkvm-error.log
+      CustomLog /var/log/apache2/mirror-lxdkvm-access.log combined
+  
+      <Directory /var/spool/sstreams/>
+        Options Indexes FollowSymLinks
+        AllowOverride None
+        Require all granted
+      </Directory>
+  </VirtualHost>
+  
+  @@ ubuntu-mirror.conf
+  
+  <VirtualHost *:80>
+      ServerName cdk-juju
+      ServerAlias *
+      DocumentRoot /var/spool/apt-mirror/mirror/archive.ubuntu.com/
+      LogLevel info
+      ErrorLog /var/log/apache2/mirror-archive.ubuntu.com-error.log
+      CustomLog /var/log/apache2/mirror-archive.ubuntu.com-access.log combined
+  
+      <Directory /var/spool/apt-mirror/>
+        Options Indexes FollowSymLinks
+        AllowOverride None
+        Require all granted
+      </Directory>
+  </VirtualHost>
+  
+  __END__
+  
+  Offline spec for setting up a system
+CI_DEPLOY_SPEC_OFFLINE
+
 $fatpacked{"CI/Repo.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'CI_REPO';
-  package CI::Repo;use Modern::Perl;use Data::Dumper;use Types::Standard qw(ArrayRef InstanceOf);use Types::Path::Tiny qw(Path);use YAML::Tiny;use Path::Tiny;use File::chdir;use URL::Encode qw(url_encode);use Moo;use namespace::autoclean;with 'CI';has items=>(is=>'ro',isa=>ArrayRef->of(Path),coerce=>1,required=>1);sub forks {my$self=shift;my@repos;for my$file (@{$self->items}){my$yaml=YAML::Tiny->read_string($file->absolute->slurp);for my$spec (@{$yaml->[0]}){push@repos,$spec}}my$tmpdir=Path::Tiny->tempdir;local$CWD=$tmpdir;for my$item (@repos){my ($spec)=keys %{$item};printf("Processing %s\n",$spec);my%vals=%{$item->{$spec}};my$downstream=sprintf("https://%s:%s\@github.com/%s",url_encode($ENV{'CDKBOT_GH_USR'}),url_encode($ENV{'CDKBOT_GH_PSW'}),$vals{downstream});printf("down -> %s\n",$downstream);printf("up   -> %s\n",$vals{upstream});$self->system("git clone $downstream")}}1;
+  package CI::Repo;use Modern::Perl;use Data::Dumper;use Types::Standard qw(ArrayRef);use Types::Path::Tiny qw(Path);use YAML::Tiny;use Path::Tiny;use File::chdir;use URL::Encode qw(url_encode);use Moo;use namespace::autoclean;with 'CI';has items=>(is=>'ro',isa=>ArrayRef->of(Path),coerce=>1,required=>1);sub forks {my$self=shift;my@repos;for my$file (@{$self->items}){my$yaml=YAML::Tiny->read_string($file->absolute->slurp);for my$spec (@{$yaml->[0]}){push@repos,$spec}}for my$item (@repos){my$tmpdir=Path::Tiny->tempdir;local$CWD=$tmpdir;my ($spec)=keys %{$item};printf("Processing %s\n",$spec);my%vals=%{$item->{$spec}};my$downstream=sprintf("https://%s:%s\@github.com/%s",url_encode($ENV{'CDKBOT_GH_USR'}),url_encode($ENV{'CDKBOT_GH_PSW'}),$vals{downstream});printf("down -> %s\n",$downstream);printf("up   -> %s\n",$vals{upstream});$self->system("git clone $downstream")}}1;
 CI_REPO
 
 $fatpacked{"Capture/Tiny.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'CAPTURE_TINY';
@@ -1426,7 +1550,6 @@ sub command_repo {
   my $app    = shift;
   my $action = shift || 'forks';
   my $repo   = CI::Repo->new(items => $app->{items},);
-  say $repo->render('welcome', 'Adam Stokes');
   $action =~ s/-/_/g;
 
   $repo->abort("Unknown action: $action") if !$repo->can($action);
@@ -1438,12 +1561,6 @@ app {
   my $self = shift;
   return 0;
 };
-
-__DATA__
-
-@@ welcome
-? my $title = shift;
-Hello <?= $title =>
 
 __END__
 

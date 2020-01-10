@@ -2,7 +2,7 @@ package CI::Repo;
 
 use Modern::Perl;
 use Data::Dumper;
-use Types::Standard qw(ArrayRef InstanceOf);
+use Types::Standard qw(ArrayRef);
 use Types::Path::Tiny qw(Path);
 use YAML::Tiny;
 use Path::Tiny;
@@ -32,10 +32,11 @@ sub forks {
         }
     }
 
-    my $tmpdir = Path::Tiny->tempdir;
-    local $CWD = $tmpdir;
-
     for my $item (@repos) {
+
+        my $tmpdir = Path::Tiny->tempdir;
+        local $CWD = $tmpdir;
+
         my ($spec) = keys %{$item};
         printf( "Processing %s\n", $spec );
         my %vals       = %{ $item->{$spec} };

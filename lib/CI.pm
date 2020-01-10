@@ -5,6 +5,8 @@ use Carp;
 use Data::Dumper();
 use Command::Runner;
 use Text::MicroTemplate::DataSection;
+use Types::Standard qw(Str HashRef);
+use Type::Params qw(compile);
 use Moo::Role;
 use namespace::autoclean;
 
@@ -28,16 +30,17 @@ sub system {
     my $runner = Command::Runner->new(
         command => $cmd,
         stdout  => sub { warn "$_[0]\n" },
-        stderr  => sub { warn "err: $_[0]\n" },
+        stderr  => sub { warn "[E]: $_[0]\n" },
     );
     my $res = $runner->run;
     return $res;
 }
 
 sub render {
-    my ($self, $name, @context) = @_;
-    my $mt = Text::MicroTemplate::DataSection->new(package => caller);
-    return $mt->render($name, @context);
+    state $check = compile( Str, HashRef );
+    my ( $self, $name, $context ) = $check->(@_);
+    my $mt = Text::MicroTemplate::DataSection->new( package => caller );
+    return $mt->render( $name, %{$context} );
 }
 
 1;
