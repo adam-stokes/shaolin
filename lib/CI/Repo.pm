@@ -1,7 +1,6 @@
 package CI::Repo;
 
 use Modern::Perl;
-use Data::Dumper;
 use Types::Standard qw(ArrayRef);
 use Types::Path::Tiny qw(Path);
 use YAML::Tiny;
@@ -21,7 +20,7 @@ has items => (
     required => 1
 );
 
-sub forks {
+sub sync {
     my $self = shift;
 
     my @repos;
@@ -38,7 +37,6 @@ sub forks {
         local $CWD = $tmpdir;
 
         my ($spec) = keys %{$item};
-        printf( "Processing %s\n", $spec );
         my %vals       = %{ $item->{$spec} };
         my $downstream = sprintf(
             "https://%s:%s\@github.com/%s",
@@ -46,9 +44,6 @@ sub forks {
             url_encode( $ENV{'CDKBOT_GH_PSW'} ),
             $vals{downstream}
         );
-
-        printf( "down -> %s\n", $downstream );
-        printf( "up   -> %s\n", $vals{upstream} );
 
         $self->system("git clone $downstream");
     }

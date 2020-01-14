@@ -11,14 +11,13 @@ version 0.01;
 documentation __FILE__;
 
 subcommand repo => 'Repo management' => sub {
-  option bool => forks => "Sync upstream repo forks";
   option str  => items => "Path to reactive/charm/ancillary items", required => 1, n_of => 1;
 };
 
 sub command_repo {
   my $app    = shift;
-  my $action = shift || 'forks';
-  my $repo   = CI::Repo->new(items => $app->{items},);
+  my $action = shift || 'sync';
+  my $repo   = CI::Repo->new(items => $app->{items});
   $action =~ s/-/_/g;
 
   $repo->abort("Unknown action: $action") if !$repo->can($action);
@@ -33,6 +32,8 @@ app {
 
 __END__
 
+=encoding utf8
+
 =head1 NAME
 
 monk - CLI for CI
@@ -41,6 +42,38 @@ monk - CLI for CI
 
     # Sync upstream git repos
     $ monk repo --items my-layers.yaml --items my-charms.yaml forks
+
+=head1 SUBCOMMANDS
+
+Each subcommand takes the form of:
+
+    $ monk <subcommand> <action>
+
+=head2 repo
+
+Git repo management
+
+    $ monk repo --help
+
+=head3 ACTIONS
+
+=over 4
+
+=item sync
+
+Sync the upstream repositories
+
+    $ monk repo sync --items ancillary-list.yaml
+
+=back
+
+=head1 COPYRIGHT
+
+Copyright (c) 2020, Adam Stokes
+
+=head1 LICENSE
+
+Perl.
 
 =head1 AUTHOR
 

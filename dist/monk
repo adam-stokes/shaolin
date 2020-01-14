@@ -158,7 +158,7 @@ $fatpacked{"CI/Deploy/Spec/Offline.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\
 CI_DEPLOY_SPEC_OFFLINE
 
 $fatpacked{"CI/Repo.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'CI_REPO';
-  package CI::Repo;use Modern::Perl;use Data::Dumper;use Types::Standard qw(ArrayRef);use Types::Path::Tiny qw(Path);use YAML::Tiny;use Path::Tiny;use File::chdir;use URL::Encode qw(url_encode);use Moo;use namespace::autoclean;with 'CI';has items=>(is=>'ro',isa=>ArrayRef->of(Path),coerce=>1,required=>1);sub forks {my$self=shift;my@repos;for my$file (@{$self->items}){my$yaml=YAML::Tiny->read_string($file->absolute->slurp);for my$spec (@{$yaml->[0]}){push@repos,$spec}}for my$item (@repos){my$tmpdir=Path::Tiny->tempdir;local$CWD=$tmpdir;my ($spec)=keys %{$item};printf("Processing %s\n",$spec);my%vals=%{$item->{$spec}};my$downstream=sprintf("https://%s:%s\@github.com/%s",url_encode($ENV{'CDKBOT_GH_USR'}),url_encode($ENV{'CDKBOT_GH_PSW'}),$vals{downstream});printf("down -> %s\n",$downstream);printf("up   -> %s\n",$vals{upstream});$self->system("git clone $downstream")}}1;
+  package CI::Repo;use Modern::Perl;use Types::Standard qw(ArrayRef);use Types::Path::Tiny qw(Path);use YAML::Tiny;use Path::Tiny;use File::chdir;use URL::Encode qw(url_encode);use Moo;use namespace::autoclean;with 'CI';has items=>(is=>'ro',isa=>ArrayRef->of(Path),coerce=>1,required=>1);sub forks {my$self=shift;my@repos;for my$file (@{$self->items}){my$yaml=YAML::Tiny->read_string($file->absolute->slurp);for my$spec (@{$yaml->[0]}){push@repos,$spec}}for my$item (@repos){my$tmpdir=Path::Tiny->tempdir;local$CWD=$tmpdir;my ($spec)=keys %{$item};printf("Processing %s\n",$spec);my%vals=%{$item->{$spec}};my$downstream=sprintf("https://%s:%s\@github.com/%s",url_encode($ENV{'CDKBOT_GH_USR'}),url_encode($ENV{'CDKBOT_GH_PSW'}),$vals{downstream});printf("down -> %s\n",$downstream);printf("up   -> %s\n",$vals{upstream});$self->system("git clone $downstream")}}1;
 CI_REPO
 
 $fatpacked{"Capture/Tiny.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'CAPTURE_TINY';
@@ -1533,23 +1533,24 @@ unshift @INC, bless \%fatpacked, $class;
   } # END OF FATPACK CODE
 
 
+use FindBin;
+use lib "$FindBin::Bin/lib";
+
 use Modern::Perl;
 use Applify;
 use CI::Repo;
-use Text::MicroTemplate qw(:all);
 
 version 0.01;
 documentation __FILE__;
 
 subcommand repo => 'Repo management' => sub {
-  option bool => forks => "Sync upstream repo forks";
   option str  => items => "Path to reactive/charm/ancillary items", required => 1, n_of => 1;
 };
 
 sub command_repo {
   my $app    = shift;
-  my $action = shift || 'forks';
-  my $repo   = CI::Repo->new(items => $app->{items},);
+  my $action = shift || 'sync';
+  my $repo   = CI::Repo->new(items => $app->{items});
   $action =~ s/-/_/g;
 
   $repo->abort("Unknown action: $action") if !$repo->can($action);
@@ -1564,6 +1565,8 @@ app {
 
 __END__
 
+=encoding utf8
+
 =head1 NAME
 
 monk - CLI for CI
@@ -1572,6 +1575,32 @@ monk - CLI for CI
 
     # Sync upstream git repos
     $ monk repo --items my-layers.yaml --items my-charms.yaml forks
+
+=head1 SUBCOMMANDS
+
+Each subcommand takes the form of:
+
+    $ monk <subcommand> <action>
+
+=head2 repo
+
+Git repo management
+
+    $ monk repo --help
+
+=head3 sync
+
+Sync the upstream repositories
+
+    $ monk repo sync --items ancillary-list.yaml
+
+=head1 COPYRIGHT
+
+Copyright (c) 2020, Adam Stokes
+
+=head1 LICENSE
+
+Perl.
 
 =head1 AUTHOR
 
