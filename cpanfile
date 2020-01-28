@@ -10,3 +10,4 @@ requires "Moo";
 requires "namespace::autoclean";
 requires "Modern::Perl";
 requires "URI";
+requires "Parallel::ForkManager";
