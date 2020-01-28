@@ -30,7 +30,7 @@ sub system {
     my $runner = Command::Runner->new(
         command => $cmd,
         stdout  => sub { warn "$_[0]\n" },
-        stderr  => sub { warn "[E]: $_[0]\n" },
+        stderr  => sub { warn "$_[0]\n" },
     );
     my $res = $runner->run;
     return $res;

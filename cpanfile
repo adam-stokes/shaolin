@@ -9,3 +9,4 @@ requires "Applify";
 requires "Moo";
 requires "namespace::autoclean";
 requires "Modern::Perl";
+requires "URI";
