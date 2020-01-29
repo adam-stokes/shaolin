@@ -2,8 +2,15 @@ package CI::Cmd::Repo::Sync;
 
 use Modern::Perl;
 use Moo;
-with 'MooX::Commander::HasOptions';
+use Getopt::Long;
+with 'MooX::Commander::HasOptions', 'CI';
 use namespace::autoclean;
+
+sub _build_options {
+    return (
+        "items=s" => $self->options->{items}
+    );
+}
 
 sub usage {
     return <<"EOF";
@@ -19,7 +26,8 @@ EOF
 
 sub go {
     my ($self) = @_;
-    say $self->options->{items};
+    say $self->dump(@_);
+    say $self->dump( $self->options->{items} );
 }
 
 1;
