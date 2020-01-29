@@ -10,6 +10,8 @@ use Type::Params qw(compile);
 use Moo::Role;
 use namespace::autoclean;
 
+our $VERSION = 0.01;
+
 use constant DEBUG => $ENV{MONK_DEBUG} || 0;
 
 sub dump {

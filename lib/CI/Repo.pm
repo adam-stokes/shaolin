@@ -11,6 +11,7 @@ use URI;
 use Parallel::ForkManager;
 
 use Moo;
+use MooX::TypeTiny;
 use namespace::autoclean;
 
 with 'CI';
