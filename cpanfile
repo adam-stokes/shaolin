@@ -7,8 +7,6 @@ requires "Text::MicroTemplate::DataSection";
 requires "Types::Path::Tiny";
 requires "Applify";
 requires "Moo";
-requires "MooX::TypeTiny";
-requires "MooX::Commander";
 requires "namespace::autoclean";
 requires "Modern::Perl";
 requires "URI";
