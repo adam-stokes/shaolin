@@ -8,6 +8,7 @@ use Path::Tiny;
 use File::chdir;
 use URL::Encode qw(url_encode);
 use URI;
+use System::Info;
 use Parallel::ForkManager;
 
 use Moo;
@@ -24,7 +25,7 @@ has items => (
 
 sub sync {
     my $self = shift;
-
+    my $si = System::Info->new;
     my @repos;
     foreach my $file ( @{ $self->items } ) {
         my $yaml = YAML::Tiny->read_string( $file->absolute->slurp );
@@ -33,7 +34,7 @@ sub sync {
         }
     }
 
-    my $pm = Parallel::ForkManager->new(4);
+    my $pm = Parallel::ForkManager->new($si->ncore);
   REPOS:
     for my $item (@repos) {
         $pm->start and next REPOS;
